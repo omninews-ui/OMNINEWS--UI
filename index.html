@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LAIO_APP • Community Audio Hub & Smart Global Economy</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --gold: #f59e0b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 16px; }
+    .app-container { width: 100%; max-width: 580px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4); }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: #0b1120; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 0.95rem; letter-spacing: 0.6px; color: var(--accent); }
+    .badge { background: var(--border); padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+    .badge.online { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+
+    .section { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+    .section-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+    .identity-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+    .identity-bar input { flex: 1; background: #0f172a; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; }
+    .identity-bar button { background: var(--accent); color: #082f49; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 0.8rem; cursor: pointer; }
+
+    .channels-wrap { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+    .channel-pill { background: #0f172a; color: var(--muted); border: 1px solid var(--border); padding: 6px 12px; border-radius: 999px; font-size: 0.76rem; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+    .channel-pill.active { background: rgba(56, 189, 248, 0.15); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+
+    .room-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.82rem; gap: 8px; flex-wrap: wrap; }
+    .action-btn { background: #0f172a; color: var(--accent); border: 1px solid var(--accent); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: 600; text-decoration: none; }
+    .action-btn:hover { background: rgba(56, 189, 248, 0.12); }
+    .tip-btn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; }
+
+    .stage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); gap: 10px; text-align: center; }
+    .participant { background: #0f172a; padding: 10px 6px; border-radius: 12px; border: 1px solid var(--border); transition: all 0.2s ease; }
+    .participant.speaking { border-color: var(--success); box-shadow: 0 0 12px rgba(34, 197, 94, 0.3); }
+    .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--border); margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem; }
+    .avatar.ai-avatar { background: rgba(56, 189, 248, 0.2); color: var(--accent); border: 1px solid var(--accent); }
+    .participant-name { font-size: 0.8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .participant-status { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+
+    /* SGES & CGES Economy Module */
+    .economy-panel { display: none; background: #0b1120; border: 1px solid #334155; border-radius: 10px; padding: 12px; margin-top: 12px; }
+    .economy-panel.visible { display: block; }
+    .economy-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .economy-row select, .economy-row input { background: #0f172a; border: 1px solid var(--border); color: var(--text); padding: 6px 8px; border-radius: 6px; font-size: 0.78rem; flex: 1; }
+    .economy-result { margin-top: 8px; font-size: 0.78rem; padding: 8px; border-radius: 6px; background: #0f172a; border: 1px solid var(--border); color: #cbd5e1; }
+
+    .transcript-box { background: #0f172a; border-radius: 10px; padding: 12px; height: 185px; overflow-y: auto; font-size: 0.84rem; line-height: 1.45; }
+    .transcript-line { margin-bottom: 8px; }
+    .transcript-line strong { color: var(--accent); }
+    .transcript-line.system-note { color: var(--muted); font-style: italic; font-size: 0.78rem; }
+
+    .chat-bar { display: flex; gap: 8px; margin-top: 10px; }
+    .chat-bar input { flex: 1; background: #0f172a; border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 8px; font-size: 0.82rem; }
+    .chat-bar button { background: #334155; color: var(--text); border: none; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; }
+
+    .status-banner { text-align: center; font-size: 0.78rem; color: var(--accent); margin-top: 8px; min-height: 18px; }
+    footer { display: flex; gap: 10px; padding: 14px 18px; background: #0b1120; }
+    .mic-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; background: var(--success); color: #052e16; font-size: 0.9rem; }
+    .mic-btn.recording { background: var(--danger); color: #fff; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <header>
+      <span class="badge" id="ws-status">Connecting...</span>
+      <h1>LAIO_APP • AUDIO & ECONOMY HUB</h1>
+      <span class="badge" id="guest-count">1 Live</span>
+    </header>
+
+    <div class="section">
+      <div class="section-title">Your Display Name & Transformational Channel</div>
+      
+        <input type="text" id="username-input" placeholder="Enter your name..." maxlength="24" />
+        <button type="button" onclick="joinStage()">Join Stage</button>
+      </div>
+
+      <div class="channels-wrap" id="channel-list">
+        <button type="button" class="channel-pill active" data-room="global-solutions" data-mood="Calm Acoustic" onclick="selectChannel(this)">Global Solutions & Peace</button>
+        <button type="button" class="channel-pill" data-room="oratory-leadership" data-mood="Civic Resonance" onclick="selectChannel(this)">Oratory & Leadership</button>
+        <button type="button" class="channel-pill" data-room="wellness-mindfulness" data-mood="432Hz Harmonic" onclick="selectChannel(this)">Wellness & Mindful Living</button>
+        <button type="button" class="channel-pill" data-room="creative-arts" data-mood="Orchestral Strings" onclick="selectChannel(this)">Creative Arts & Music</button>
+        <button type="button" class="channel-pill" data-room="innovation-economy" data-mood="Quantum Pulse" onclick="selectChannel(this)">Innovation & Economy</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span id="room-title-label">Live Room: Global Solutions & Peace</span>
+        <div style="display:flex; gap:6px;">
+          <a href="/tip-widget" target="_blank" class="action-btn tip-btn">Send Stipend</a>
+          <button type="button" class="action-btn" id="share-btn" onclick="shareRoomLink()">Share Link</button>
+        </div>
+      </div>
+      <div class="room-meta">
+        <span>Soundscape: <strong id="mood-label">Calm Acoustic</strong></span>
+        <button type="button" class="action-btn" id="synth-btn" onclick="toggleSynth()">Play Ambient Synth</button>
+      </div>
+
+      <div class="stage-grid" id="stage-grid">
+        <div class="participant" id="ai-card">
+          <div class="avatar ai-avatar">AI</div>
+          <div class="participant-name">AI Moderator</div>
+          <div class="participant-status" id="ai-status">Orchestrating</div>
+        </div>
+      </div>
+
+      <!-- SGES & CGES Real-Time Economic Audit Module (Auto-opens in Innovation & Economy) -->
+      <div class="economy-panel" id="economy-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:0.8rem; color:#38bdf8;">SGES & CGES Real-Time Clearing Audit (2026–2036+)</strong>
+          <span style="font-size:0.7rem; color:#4ade80;">USA • GLOBAL ACTIVE</span>
+        </div>
+        <div class="economy-row">
+          <select id="sges-instrument">
+            <option value="GOLD_BULLION">Gold Bullion Reserve (100% Backed)</option>
+            <option value="ENERGY_KWH">Verified Clean Energy (MWh)</option>
+            <option value="CRITICAL_MINERAL">Critical Minerals (Cobalt/Titanium)</option>
+            <option value="UNBACKED_FIAT">Unbacked Printed Paper Fiat</option>
+            <option value="UNBACKED_DIGITAL">Unbacked Typed Digital Figures</option>
+          </select>
+          <input type="number" id="sges-amount" value="50000" min="1" placeholder="Amount USD" />
+          <button type="button" class="action-btn" onclick="runSGESAudit()">Verify Asset</button>
+        </div>
+        <div class="economy-result" id="sges-output">
+          Ready to verify real-world asset collateral vs. unbacked numerical entries.
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>Live Room Broadcast Stream</span>
+        <button type="button" class="action-btn" onclick="exportTranscript()">Export Transcript</button>
+      </div>

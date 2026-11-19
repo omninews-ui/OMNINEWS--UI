@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LAIO_APP Creator Stipend & Micro-Tipping</title>
+</head>
+<body style="background: #f7fafc; padding: 24px; margin: 0;">
+
+  <div id="laio-tip-container" style="border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; max-width: 500px; margin: 0 auto; font-family: system-ui, -apple-system, sans-serif; background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+    
+    <!-- Header & Mode Badge -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <span id="laio-creator-badge" style="font-size: 0.8rem; font-weight: 600; color: #2d3748; background: #edf2f7; padding: 4px 10px; border-radius: 999px;">
+        Loading Creator...
+      </span>
+      <span id="laio-mode-badge" style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #744210; background: #fefcbf; padding: 3px 8px; border-radius: 6px;">
+        PILOT
+      </span>
+    </div>
+
+    <p id="laio-tip-prompt" style="margin: 8px 0 4px 0; font-weight: 700; font-size: 1.05rem; color: #1a202c;">
+      Loading local support options...
+    </p>
+    <p id="laio-tip-subprompt" style="margin: 0 0 14px 0; font-size: 0.85rem; color: #718096;"></p>
+
+    <!-- Region Switcher (US / KE / BR) -->
+    <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+      <button type="button" onclick="switchRegion('US')" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e0; background: #f8fafc; cursor: pointer;">🇺🇸 USA (USD)</button>
+      <button type="button" onclick="switchRegion('KE')" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e0; background: #f8fafc; cursor: pointer;">🇰🇪 Kenya (M-Pesa)</button>
+      <button type="button" onclick="switchRegion('BR')" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e0; background: #f8fafc; cursor: pointer;">🇧🇷 Brasil (PIX)</button>
+    </div>
+
+    <!-- 5-Tier Buttons Render Here Automatically -->
+    <div id="laio-tier-buttons" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;"></div>
+
+    <!-- Live Commission & Net Stipend Preview -->
+    <div id="laio-split-preview" style="display: none; background: #f0fff4; border: 1px solid #c6f6d5; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.83rem; color: #22543d;"></div>
+
+    <!-- Contact / Phone Input -->
+    <input
+      id="laio-supporter-input"
+      type="text"
+      placeholder="Enter M-Pesa No. (e.g. 0712345678)"
+      style="width: 100%; padding: 11px 12px; margin-bottom: 10px; border: 1px solid #cbd5e0; border-radius: 8px; box-sizing: border-box; font-size: 0.95rem;"
+    />
+
+    <!-- Action Button -->
+    <button
+      id="laio-send-btn"
+      onclick="submitTip()"
+      style="width: 100%; padding: 12px; background: #16a34a; color: #ffffff; border: none; border-radius: 8px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: background 0.2s;"
+    >
+      Send Stipend via M-Pesa
+    </button>
+
+    <!-- Dynamic UI Status / Spinner / Receipt Box -->
+    <div id="laio-tip-status" style="margin-top: 12px; font-size: 0.88rem; min-height: 20px;"></div>
+
+    <!-- Live Transaction History Ledger -->
+    <div style="margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <strong style="font-size: 0.85rem; color: #4a5568;">Recent Creative Stipends</strong>
+        <button type="button" onclick="loadHistory()" style="background: none; border: none; color: #3182ce; font-size: 0.8rem; cursor: pointer; padding: 0;">Refresh</button>
+      </div>
+      <div id="laio-history-list" style="font-size: 0.82rem; color: #4a5568; display: flex; flex-direction: column; gap: 6px;">
+        <span style="color: #a0aec0;">No stipends sent yet in this session.</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Dynamically uses live Render URL or localhost without hardcoding
+    const API_BASE_URL = window.location.origin.startsWith("http")
+      ? window.location.origin
+      : "http://127.0.0.1:8000";
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const SUBMISSION_ID = urlParams.get("story") || "STORY_001";
+    let currentCountry = null;
+    let activeConfig = null;
+    let selectedTier = null;
+    let pollTimer = null;
+
+    function detectBrowserCountry() {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      if (tz.includes("Nairobi")) return "KE";
+      if (tz.includes("New_York") || tz.includes("Chicago") || tz.includes("Denver") || tz.includes("Los_Angeles")) return "US";
+      if (tz.includes("Sao_Paulo") || tz.includes("America/Fortaleza")) return "BR";
+      return "KE";
+    }
+
+    function switchRegion(code) {
+      currentCountry = code;
+      initWidget(code);
+    }
+
+    async function initWidget(overrideCountry = null) {
+      const country = overrideCountry || currentCountry || detectBrowserCountry();
+      currentCountry = country;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/locale-config?country_code=${country}&submission_id=${SUBMISSION_ID}`);
+        if (!res.ok) throw new Error("Server returned status " + res.status);
+        activeConfig = await res.json();
+
+        document.getElementById("laio-creator-badge").textContent = `${activeConfig.creator.name} • ${activeConfig.creator.role}`;
+        document.getElementById("laio-mode-badge").textContent = `${activeConfig.mode} MODE`;
+        document.getElementById("laio-tip-prompt").textContent = activeConfig.prompt;
+        document.getElementById("laio-tip-subprompt").textContent = activeConfig.prompt_en;
+        document.getElementById("laio-supporter-input").placeholder = activeConfig.placeholder;
+
+        const sendBtn = document.getElementById("laio-send-btn");
+        sendBtn.textContent = activeConfig.gateway === "MPESA"
+          ? "Send Stipend via M-Pesa"
+          : `Send Stipend (${activeConfig.currency})`;
+
+        renderTierButtons();
+        loadHistory();
+      } catch (err) {
+        setStatus(`Cannot reach LAIO server at ${API_BASE_URL}. If Render is waking up, wait 15 seconds and refresh.`, "error");
+      }
+    }
+
+    function renderTierButtons() {
+      const container = document.getElementById("laio-tier-buttons");
+      container.innerHTML = "";
+
+      activeConfig.tiers.forEach((amount, idx) => {
+        const label = activeConfig.tier_labels ? activeConfig.tier_labels[idx] : "";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.dataset.amount = amount;
+        btn.innerHTML = `<div style="font-weight:700;">${activeConfig.symbol} ${amount}</div><div style="font-size:0.72rem;opacity:0.85;">${label}</div>`;
+        btn.style.cssText = "padding: 10px 6px; border: 1.5px solid #cbd5e0; border-radius: 8px; background: #f8fafc; color: #1a202c; cursor: pointer; text-align: center;";
+
+        btn.onclick = () => selectTier(amount);
+        container.appendChild(btn);
+      });
+
+      if (activeConfig.tiers.length > 1) {
+        selectTier(activeConfig.tiers[1]);
+      }
+    }
+
+    function selectTier(amount) {
+      selectedTier = amount;
+      document.querySelectorAll("#laio-tier-buttons button").forEach((btn) => {
+        const isSelected = Number(btn.dataset.amount) === amount;
+        btn.style.borderColor = isSelected ? "#16a34a" : "#cbd5e0";
+        btn.style.background = isSelected ? "#dcfce7" : "#f8fafc";
+        btn.style.color = isSelected ? "#14532d" : "#1a202c";
+      });
+
+      const fee = (amount * 0.1).toFixed(2);
+      const net = (amount - fee).toFixed(2);
+      const preview = document.getElementById("laio-split-preview");
+      preview.style.display = "block";
+      preview.innerHTML = `<strong>Direct Stipend Breakdown:</strong> ${activeConfig.symbol} ${net} goes directly to <strong>${activeConfig.creator.name}</strong> (${activeConfig.symbol} ${fee} LAIO platform upkeep).`;
+    }
+
+    function validateKenyanPhoneClient(raw) {
+      const digits = raw.replace(/\D/g, "");
+      if (/^0(7|1)\d{8}$/.test(digits)) return "254" + digits.slice(1);
+      if (/^254(7|1)\d{8}$/.test(digits)) return digits;
+      return null;
+    }
+
+    function setStatus(html, type = "info") {
+      const box = document.getElementById("laio-tip-status");
+      const styles = {
+        info: "background:#ebf8ff; color:#2b6cb0; border:1px solid #bee3f8;",
+        pending: "background:#fefcbf; color:#744210; border:1px solid #f6e05e;",
+        success: "background:#f0fff4; color:#22543d; border:1px solid #9ae6b4;",
+        error: "background:#fff5f5; color:#9b2c2c; border:1px solid #feb2b2;",
+      };
+      box.style.cssText = `margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 0.86rem; ${styles[type] || styles.info}`;
+      box.innerHTML = html;
+    }
+
+    async function submitTip() {
+      if (!activeConfig || !selectedTier) return;
+
+      const rawInput = document.getElementById("laio-supporter-input").value.trim();
+      let contactToSend = rawInput;
+
+      if (activeConfig.gateway === "MPESA") {
+        const normalized = validateKenyanPhoneClient(rawInput);
+        if (!normalized) {
+          setStatus("Please enter a valid Kenyan M-Pesa number (e.g. <strong>0712345678</strong> or <strong>254712345678</strong>).", "error");
+          return;
+        }
+        contactToSend = normalized;
+      } else if (!rawInput) {
+        setStatus("Please enter an email or contact handle for your receipt.", "error");
+        return;
+      }
+
+      const sendBtn = document.getElementById("laio-send-btn");
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = "0.7";

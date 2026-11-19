@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: laio-app
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MPESA_MODE
+        value: mock
+      - key: PLATFORM_FEE_PERCENT
+        value: "10.0"
+      - key: DARAJA_CONSUMER_KEY
+        sync: false
+      - key: DARAJA_CONSUMER_SECRET
+        sync: false
+      - key: DARAJA_SHORTCODE
+        value: "174379"
+      - key: DARAJA_PASSKEY
+        sync: false
+      - key: DARAJA_CALLBACK_URL
+        value: https://onrender.com
+      - key: GROQ_API_KEY
+        sync: false
